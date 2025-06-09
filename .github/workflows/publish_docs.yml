@@ -1,0 +1,59 @@
+name: Publish Documentation
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy-customer-app:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies (customer-app)
+        run: cd customer-app && npm ci
+
+      - name: Generate documentation for customer-app with Compodoc
+        run: cd customer-app && npx @compodoc/compodoc -p tsconfig.json -d documentation --silent
+
+      - name: Deploy customer-app docs to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./customer-app/documentation
+          publish_branch: docs
+          destination_dir: customer-app
+
+  build-and-deploy-notifications:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies (notifications)
+        run: cd notifications && npm ci
+
+      - name: Generate documentation for notifications with Compodoc
+        run: cd notifications && npx @compodoc/compodoc -p tsconfig.json -d documentation --silent
+
+      - name: Deploy notifications docs to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./notifications/documentation
+          publish_branch: docs
+          destination_dir: notifications

@@ -1,0 +1,92 @@
+name: Crear y Publicar Releases Automáticos
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release-both-packages:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # --- Notifications package ---
+      - name: Install dependencies (notifications)
+        run: npm ci
+        working-directory: notifications
+
+      - name: Build and pack (notifications)
+        run: |
+          cd notifications
+          npm version patch --no-git-tag-version
+          npm pack
+        id: pack_notifications
+
+      - name: Get notifications version
+        id: version_notifications
+        run: |
+          VERSION=$(node -p "require('./notifications/package.json').version")
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "::set-output name=tag::v$VERSION"
+
+      - name: Create git tag (notifications)
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag -f "notifications-v${{ env.VERSION }}"
+          git push origin "notifications-v${{ env.VERSION }}" --force
+
+      - name: Create GitHub Release (notifications)
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: "notifications-v${{ env.VERSION }}"
+          name: "Notifications Release v${{ env.VERSION }}"
+          files: notifications/*.tgz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # --- Customer App package ---
+      - name: Install dependencies (customer-app)
+        run: npm ci
+        working-directory: customer-app
+
+      - name: Build and pack (customer-app)
+        run: |
+          cd customer-app
+          npm version patch --no-git-tag-version
+          npm pack
+        id: pack_customerapp
+
+      - name: Get customer-app version
+        id: version_customerapp
+        run: |
+          VERSION=$(node -p "require('./customer-app/package.json').version")
+          echo "CUSTOMER_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "::set-output name=tag::v$VERSION"
+
+      - name: Create git tag (customer-app)
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag -f "customerapp-v${{ env.CUSTOMER_VERSION }}"
+          git push origin "customerapp-v${{ env.CUSTOMER_VERSION }}" --force
+
+      - name: Create GitHub Release (customer-app)
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: "customerapp-v${{ env.CUSTOMER_VERSION }}"
+          name: "Customer App Release v${{ env.CUSTOMER_VERSION }}"
+          files: customer-app/*.tgz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

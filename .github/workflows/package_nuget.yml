@@ -1,0 +1,118 @@
+name: Build, Test, Analyze and Publish NPM Packages
+#nuget
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  notifications-package:
+    name: Notifications - Build, Test, Analyze & Publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://npm.pkg.github.com/'
+
+      - name: Install dependencies
+        run: cd notifications && npm ci
+
+      - name: Run unit tests and generate coverage
+        run: cd notifications && npm run test -- --coverage
+
+      - name: Upload test coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: notifications-coverage
+          path: notifications/coverage
+
+      - name: SonarCloud Scan (notifications)
+        uses: SonarSource/sonarcloud-github-action@v2
+        with:
+          projectBaseDir: notifications
+          args: >
+            -Dsonar.organization=erickorganizacion
+            -Dsonar.projectKey=erickorganizacion_lab2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build package
+        run: |
+          cd notifications
+          npm version patch --no-git-tag-version
+          npm pack
+
+      - name: Configure npm for GitHub Packages
+        run: echo "//npm.pkg.github.com/:_authToken=${GH_TOKEN}" > ~/.npmrc
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+      - name: Publish package to GitHub Packages
+        run: |
+          cd notifications
+          npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+  customer-app-package:
+    name: Customer App - Build, Test, Analyze & Publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://npm.pkg.github.com/'
+
+      - name: Install dependencies
+        run: cd customer-app && npm ci
+
+      - name: Run unit tests and generate coverage
+        run: cd customer-app && npm run test -- --coverage
+
+      - name: Upload test coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: customer-app-coverage
+          path: customer-app/coverage
+
+      - name: SonarCloud Scan (customer-app)
+        uses: SonarSource/sonarcloud-github-action@v2
+        with:
+          projectBaseDir: customer-app
+          args: >
+            -Dsonar.organization=erickorganizacion
+            -Dsonar.projectKey=erickorganizacion_lab2-2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build package
+        run: |
+          cd customer-app
+          npm version patch --no-git-tag-version
+          npm pack
+
+      - name: Configure npm for GitHub Packages
+        run: echo "//npm.pkg.github.com/:_authToken=${GH_TOKEN}" > ~/.npmrc
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+      - name: Publish package to GitHub Packages
+        run: |
+          cd customer-app
+          npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GH_TOKEN }}
